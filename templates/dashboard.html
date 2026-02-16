@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Workstation Tracking</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* ==================== LOGIN SCREEN ==================== */
+        .login-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+            padding: 40px;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .login-header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-top: 10px;
+            text-align: center;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            color: #667eea;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #e0e0e0;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* ==================== DASHBOARD SCREEN ==================== */
+        .dashboard-container {
+            display: none;
+            background: white;
+            min-height: 100vh;
+            padding: 0;
+        }
+
+        .dashboard-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-title {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .user-name {
+            font-size: 14px;
+        }
+
+        .logout-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid white;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .dashboard-content {
+            padding: 30px;
+        }
+
+        .filters {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .filter-group label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 13px;
+        }
+
+        .search-btn {
+            background: #667eea;
+            color: white;
+            padding: 8px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            align-self: flex-end;
+            transition: background 0.3s;
+        }
+
+        .search-btn:hover {
+            background: #764ba2;
+        }
+
+        .packaging-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 20px;
+        }
+
+        .packaging-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .packaging-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .card-details {
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .detail-label {
+            color: #666;
+            font-weight: 600;
+        }
+
+        .detail-value {
+            color: #333;
+            word-break: break-all;
+        }
+
+        .video-section {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .video-section h4 {
+            color: #333;
+            font-size: 13px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .video-player {
+            width: 100%;
+            height: 200px;
+            background: #000;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            font-size: 13px;
+        }
+
+        .video-player video {
+            width: 100%;
+            height: 100%;
+            border-radius: 5px;
+        }
+
+        .no-video {
+            color: #999;
+            font-size: 13px;
+            text-align: center;
+            padding: 20px;
+            background: #f0f0f0;
+            border-radius: 5px;
+        }
+
+        .video-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .video-controls button {
+            flex: 1;
+            padding: 8px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        .video-controls button:hover {
+            background: #764ba2;
+        }
+
+        .video-controls button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .pagination button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 13px;
+            transition: background 0.3s, border-color 0.3s;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .pagination button.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.3;
+        }
+
+        .loading-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background: #333;
+            color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            animation: slideInUp 0.3s ease;
+        }
+
+        .toast.success {
+            background: #27ae60;
+        }
+
+        .toast.error {
+            background: #e74c3c;
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .packaging-list {
+                grid-template-columns: 1fr;
+            }
+
+            .filters {
+                grid-template-columns: 1fr;
+            }
+
+            .dashboard-header {
+                flex-direction: column;
+                gap: 15px;
+                align-items: flex-start;
+            }
+
+            .user-info {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- LOGIN SCREEN -->
+    <div class="login-container" id="loginContainer">
+        <div class="login-header">
+            <h1><i class="fas fa-shield-alt"></i> Admin Login</h1>
+            <p>Workstation Tracking System</p>
+        </div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" placeholder="Enter your username" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="Enter your password" required>
+            </div>
+
+            <button type="submit" class="login-btn" id="loginBtn">
+                <span id="btnText">Login</span>
+                <span class="loading" id="btnLoading">
+                    <span class="spinner"></span>
+                </span>
+            </button>
+
+            <div class="error-message" id="loginError"></div>
+        </form>
+    </div>
+
+    <!-- DASHBOARD SCREEN -->
+    <div class="dashboard-container" id="dashboardContainer">
+        <div class="dashboard-header">
+            <div class="header-title">
+                <i class="fas fa-boxes"></i> Packaging Dashboard
+            </div>
+            <div class="user-info">
+                <div class="user-name">
+                    <span id="userName"></span>
+                </div>
+                <button class="logout-btn" id="logoutBtn">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
+
+        <div class="dashboard-content">
+            <div class="filters">
+                <div class="filter-group">
+                    <label>Barcode 1</label>
+                    <input type="text" id="filterBarcode1" placeholder="Search barcode 1">
+                </div>
+                <div class="filter-group">
+                    <label>Barcode 2</label>
+                    <input type="text" id="filterBarcode2" placeholder="Search barcode 2">
+                </div>
+                <div class="filter-group">
+                    <label>Status</label>
+                    <select id="filterStatus">
+                        <option value="">All</option>
+                        <option value="y">Active</option>
+                        <option value="n">Inactive</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Start Date</label>
+                    <input type="date" id="filterStartDate">
+                </div>
+                <div class="filter-group">
+                    <label>End Date</label>
+                    <input type="date" id="filterEndDate">
+                </div>
+                <button class="search-btn" id="searchBtn">
+                    <i class="fas fa-search"></i> Search
+                </button>
+            </div>
+
+            <div id="packageListContainer">
+                <div class="loading-container">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+
+            <div class="pagination" id="paginationContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration
+        const API_BASE_URL = '/api';
+        let authToken = localStorage.getItem('authToken');
+        let currentPage = 1;
+        const perPage = 6;
+
+        // ==================== LOGIN FUNCTIONALITY ====================
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await login();
+        });
+
+        async function login() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const loginBtn = document.getElementById('loginBtn');
+            const btnText = document.getElementById('btnText');
+            const btnLoading = document.getElementById('btnLoading');
+            const errorMsg = document.getElementById('loginError');
+
+            if (!username || !password) {
+                showError('Please enter both username and password', errorMsg);
+                return;
+            }
+
+            loginBtn.disabled = true;
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'block';
+            errorMsg.classList.remove('show');
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/user/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: username,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Login failed');
+                }
+
+                // Store token and user info
+                authToken = data.token;
+                localStorage.setItem('authToken', authToken);
+                localStorage.setItem('userName', data.user.name);
+                localStorage.setItem('userRole', data.user.role);
+
+                // Switch to dashboard
+                document.getElementById('loginContainer').style.display = 'none';
+                document.getElementById('dashboardContainer').style.display = 'block';
+                document.getElementById('userName').textContent = `Welcome, ${data.user.name}`;
+
+                // Load packaging list
+                await loadPackagingList();
+
+            } catch (error) {
+                showError(error.message, errorMsg);
+            } finally {
+                loginBtn.disabled = false;
+                btnText.style.display = 'inline';
+                btnLoading.style.display = 'none';
+            }
+        }
+
+        // ==================== DASHBOARD FUNCTIONALITY ====================
+        document.getElementById('logoutBtn').addEventListener('click', logout);
+
+        function logout() {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userName');
+            localStorage.removeItem('userRole');
+            authToken = null;
+            currentPage = 1;
+            document.getElementById('loginContainer').style.display = 'block';
+            document.getElementById('dashboardContainer').style.display = 'none';
+            document.getElementById('loginForm').reset();
+        }
+
+        document.getElementById('searchBtn').addEventListener('click', () => {
+            currentPage = 1;
+            loadPackagingList();
+        });
+
+        async function loadPackagingList() {
+            const container = document.getElementById('packageListContainer');
+            const barcode1 = document.getElementById('filterBarcode1').value.trim();
+            const barcode2 = document.getElementById('filterBarcode2').value.trim();
+            const status = document.getElementById('filterStatus').value.trim();
+            const startDate = document.getElementById('filterStartDate').value.trim();
+            const endDate = document.getElementById('filterEndDate').value.trim();
+
+            container.innerHTML = '<div class="loading-container"><div class="spinner"></div></div>';
+
+            try {
+                let url = `${API_BASE_URL}/packaging/list?page=${currentPage}&per_page=${perPage}`;
+                
+                if (barcode1) url += `&bar_code_1=${encodeURIComponent(barcode1)}`;
+                if (barcode2) url += `&bar_code_2=${encodeURIComponent(barcode2)}`;
+                if (status) url += `&is_active=${encodeURIComponent(status)}`;
+                if (startDate) url += `&start_date=${encodeURIComponent(startDate)}`;
+                if (endDate) url += `&end_date=${encodeURIComponent(endDate)}`;
+
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                if (response.status === 401) {
+                    logout();
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (!data.data || data.data.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>No packaging records found</p></div>';
+                    document.getElementById('paginationContainer').innerHTML = '';
+                    return;
+                }
+
+                // Render cards
+                container.innerHTML = '<div class="packaging-list"></div>';
+                const listContainer = container.querySelector('.packaging-list');
+
+                data.data.forEach(record => {
+                    const card = createPackagingCard(record);
+                    listContainer.appendChild(card);
+                });
+
+                // Render pagination
+                renderPagination(data.pagination);
+
+            } catch (error) {
+                container.innerHTML = `<div class="empty-state"><p>Error loading packaging records: ${error.message}</p></div>`;
+                showToast(error.message, 'error');
+            }
+        }
+
+        function createPackagingCard(record) {
+            const div = document.createElement('div');
+            div.className = 'packaging-card';
+
+            const statusClass = record.is_active === 'y' ? 'status-active' : 'status-inactive';
+            const statusText = record.is_active === 'y' ? 'Active' : 'Inactive';
+            const hasVideo = record.video_path && record.video_path.trim() !== '';
+
+            const startTime = record.start_time ? new Date(record.start_time).toLocaleString() : 'N/A';
+            const endTime = record.end_time ? new Date(record.end_time).toLocaleString() : 'N/A';
+
+            div.innerHTML = `
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-barcode"></i> Package ${record.id}
+                    </div>
+                    <span class="status-badge ${statusClass}">${statusText}</span>
+                </div>
+
+                <div class="card-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Barcode 1:</span>
+                        <span class="detail-value">${record.bar_code_1 || 'N/A'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Barcode 2:</span>
+                        <span class="detail-value">${record.bar_code_2 || 'N/A'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Start Time:</span>
+                        <span class="detail-value">${startTime}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">End Time:</span>
+                        <span class="detail-value">${endTime}</span>
+                    </div>
+                </div>
+
+                <div class="video-section">
+                    <h4><i class="fas fa-video"></i> Video</h4>
+                    ${hasVideo ? `
+                        <div class="video-player">
+                            <video controls>
+                                <source src="/api/video/${record.id}" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        </div>
+                        <div class="video-controls">
+                            <button onclick="downloadVideo(${record.id})">
+                                <i class="fas fa-download"></i> Download
+                            </button>
+                            <button onclick="playVideoFullscreen(${record.id})">
+                                <i class="fas fa-expand"></i> Fullscreen
+                            </button>
+                        </div>
+                    ` : `
+                        <div class="no-video">
+                            <i class="fas fa-video-slash"></i> No video attached
+                        </div>
+                    `}
+                </div>
+            `;
+
+            return div;
+        }
+
+        function renderPagination(pagination) {
+            const container = document.getElementById('paginationContainer');
+            container.innerHTML = '';
+
+            if (pagination.pages <= 1) return;
+
+            // Previous button
+            const prevBtn = document.createElement('button');
+            prevBtn.textContent = '← Previous';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => {
+                currentPage--;
+                loadPackagingList();
+            };
+            container.appendChild(prevBtn);
+
+            // Page numbers
+            for (let i = 1; i <= pagination.pages; i++) {
+                const btn = document.createElement('button');
+                btn.textContent = i;
+                btn.className = i === currentPage ? 'active' : '';
+                btn.onclick = () => {
+                    currentPage = i;
+                    loadPackagingList();
+                };
+                container.appendChild(btn);
+            }
+
+            // Next button
+            const nextBtn = document.createElement('button');
+            nextBtn.textContent = 'Next →';
+            nextBtn.disabled = currentPage === pagination.pages;
+            nextBtn.onclick = () => {
+                currentPage++;
+                loadPackagingList();
+            };
+            container.appendChild(nextBtn);
+        }
+
+        function downloadVideo(packageId) {
+            const link = document.createElement('a');
+            link.href = `/api/packaging/download-video/${packageId}`;
+            link.download = `packaging_${packageId}_video.mp4`;
+            
+            // Add auth token to request
+            fetch(link.href, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
+            }).then(response => response.blob())
+              .then(blob => {
+                  const url = window.URL.createObjectURL(blob);
+                  const downloadLink = document.createElement('a');
+                  downloadLink.href = url;
+                  downloadLink.download = `packaging_${packageId}_video.mp4`;
+                  document.body.appendChild(downloadLink);
+                  downloadLink.click();
+                  document.body.removeChild(downloadLink);
+                  window.URL.revokeObjectURL(url);
+                  showToast('Video download started', 'success');
+              })
+              .catch(error => {
+                  console.error('Download error:', error);
+                  showToast('Error downloading video', 'error');
+              });
+        }
+
+        function playVideoFullscreen(packageId) {
+            const video = document.createElement('video');
+            video.src = `/api/video/${packageId}`;
+            video.controls = true;
+            video.style.width = '100%';
+            video.style.height = '100%';
+
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.9);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 999;
+            `;
+
+            const closeBtn = document.createElement('button');
+            closeBtn.innerHTML = '<i class="fas fa-times"></i>';
+            closeBtn.style.cssText = `
+                position: absolute;
+                top: 20px;
+                right: 20px;
+                background: rgba(255,255,255,0.2);
+                border: none;
+                color: white;
+                font-size: 24px;
+                cursor: pointer;
+                padding: 10px 15px;
+                border-radius: 5px;
+                z-index: 1000;
+            `;
+
+            const container = document.createElement('div');
+            container.style.cssText = `
+                width: 90%;
+                height: 90%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            `;
+            container.appendChild(video);
+
+            modal.appendChild(container);
+            modal.appendChild(closeBtn);
+            
+            closeBtn.onclick = () => {
+                document.body.removeChild(modal);
+                video.pause();
+            };
+
+            modal.onclick = (e) => {
+                if (e.target === modal) {
+                    document.body.removeChild(modal);
+                    video.pause();
+                }
+            };
+
+            document.body.appendChild(modal);
+            video.play();
+        }
+
+        function showError(message, element) {
+            element.textContent = message;
+            element.classList.add('show');
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideInUp 0.3s ease reverse';
+                setTimeout(() => document.body.removeChild(toast), 300);
+            }, 3000);
+        }
+
+        // Check if already logged in
+        window.addEventListener('load', () => {
+            if (authToken && localStorage.getItem('userName')) {
+                document.getElementById('loginContainer').style.display = 'none';
+                document.getElementById('dashboardContainer').style.display = 'block';
+                document.getElementById('userName').textContent = `Welcome, ${localStorage.getItem('userName')}`;
+                loadPackagingList();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template, send_from_directory, send_file
 from flask_swagger_ui import get_swaggerui_blueprint
 import sqlite3
 import jwt
@@ -69,13 +69,16 @@ app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 
 CORS(app, resources={
     r"/api/*": {
-        "origins": ["http://192.168.0.135:27189"],
+        "origins": '*',
         "methods": ["GET", "POST", "PUT", "DELETE"],
         "allow_headers": ["Content-Type", "Authorization"]
     }
 })
 
 # ==================== USER APIs ====================
+@app.route("/")
+def home():
+    return render_template("dashboard.html")
 
 @app.route('/api/user/create', methods=['POST'])
 def create_user():
@@ -393,8 +396,6 @@ def list_packaging(current_user_id):
     except Exception as e:
         return jsonify({'message': f'Error fetching packaging records: {str(e)}'}), 500
 
-
-
 @app.route('/api/packaging/upload-video/<int:packaging_id>', methods=['POST'])
 @token_required
 def upload_video(current_user_id, packaging_id):
@@ -433,20 +434,29 @@ def upload_video(current_user_id, packaging_id):
         original_filename = secure_filename(video_file.filename)
         filename = f"packaging_{packaging_id}_{timestamp}_{original_filename}"
         
+        # Ensure upload folder exists
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        
         # Save the video file
         video_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         video_file.save(video_path)
         
+        print(f"[UPLOAD] Video saved to: {video_path}")
+        print(f"[UPLOAD] File exists: {os.path.exists(video_path)}")
+        
         # Delete old video if exists
         if existing_record['video_path']:
             old_video_path = existing_record['video_path']
+            print(f"[UPLOAD] Attempting to delete old video: {old_video_path}")
             if os.path.exists(old_video_path):
                 try:
                     os.remove(old_video_path)
-                except:
+                    print(f"[UPLOAD] Old video deleted")
+                except Exception as e:
+                    print(f"[UPLOAD] Failed to delete old video: {str(e)}")
                     pass  # Continue even if deletion fails
         
-        # Update video path in database
+        # Update video path in database - store relative path
         cursor.execute("""
             UPDATE tracking_table 
             SET video_path = ? 
@@ -463,7 +473,157 @@ def upload_video(current_user_id, packaging_id):
         }), 200
         
     except Exception as e:
+        print(f"[UPLOAD ERROR] {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'message': f'Error uploading video: {str(e)}'}), 500
+
+# ==================== VIDEO SERVING ENDPOINTS ====================
+
+@app.route('/api/video/<int:packaging_id>')
+def stream_video(packaging_id):
+    """Stream video file for a packaging record (public endpoint for video tag)"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT video_path FROM tracking_table WHERE id = ?", (packaging_id,))
+        record = cursor.fetchone()
+        conn.close()
+        
+        if not record:
+            return jsonify({'message': 'Packaging record not found'}), 404
+        
+        if not record['video_path']:
+            return jsonify({'message': 'No video associated with this packaging record'}), 404
+        
+        video_path = record['video_path']
+        
+        # Normalize the path
+        video_path = os.path.normpath(video_path)
+        
+        # Check if path exists
+        if not os.path.exists(video_path):
+            print(f"[VIDEO ERROR] File not found at: {video_path}")
+            print(f"[VIDEO ERROR] Current directory: {os.getcwd()}")
+            print(f"[VIDEO ERROR] Absolute path would be: {os.path.abspath(video_path)}")
+            # List what files actually exist in uploads/videos
+            upload_dir = 'uploads/videos'
+            if os.path.exists(upload_dir):
+                files = os.listdir(upload_dir)
+                print(f"[VIDEO ERROR] Files in {upload_dir}: {files[:5]}...")  # Show first 5
+            return jsonify({'message': f'Video file not found: {video_path}'}), 404
+        
+        print(f"[VIDEO] Serving: {video_path}")
+        
+        # Use send_file for better control
+        from flask import send_file
+        return send_file(video_path, mimetype='video/mp4')
+        
+    except Exception as e:
+        print(f"[VIDEO ERROR] {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'message': f'Error streaming video: {str(e)}'}), 500
+
+@app.route('/api/packaging/download-video/<int:packaging_id>', methods=['GET'])
+def download_video(packaging_id):
+    """Download video file for a packaging record"""
+    try:
+        # Get token from header or query parameter
+        token = request.headers.get('Authorization')
+        token_param = request.args.get('token')
+        
+        # If no token in header, try query parameter
+        if not token and token_param:
+            token = f'Bearer {token_param}'
+        
+        if token:
+            try:
+                if token.startswith('Bearer '):
+                    token = token.split(' ')[1]
+                jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
+            except:
+                pass  # Allow download without authentication for now
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT video_path FROM tracking_table WHERE id = ?", (packaging_id,))
+        record = cursor.fetchone()
+        conn.close()
+        
+        if not record:
+            return jsonify({'message': 'Packaging record not found'}), 404
+        
+        if not record['video_path']:
+            return jsonify({'message': 'No video associated with this packaging record'}), 404
+        
+        video_path = record['video_path']
+        print(f"[DOWNLOAD] Requested path: {video_path}")
+        
+        # Try to find the file - handle both absolute and relative paths
+        if not os.path.exists(video_path):
+            # If it's a relative path, try from current directory
+            if not os.path.isabs(video_path):
+                video_path = os.path.join(os.getcwd(), video_path)
+                print(f"[DOWNLOAD] Trying absolute path: {video_path}")
+        
+        if not os.path.exists(video_path):
+            print(f"[DOWNLOAD] File not found: {video_path}")
+            return jsonify({'message': f'Video file not found: {video_path}'}), 404
+        
+        directory = os.path.dirname(os.path.abspath(video_path))
+        filename = os.path.basename(video_path)
+        
+        print(f"[DOWNLOAD] Serving from directory: {directory}, filename: {filename}")
+        return send_from_directory(directory, filename, as_attachment=True)
+        
+    except Exception as e:
+        print(f"[DOWNLOAD ERROR] {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'message': f'Error downloading video: {str(e)}'}), 500
+
+@app.route('/api/packaging/delete-video/<int:packaging_id>', methods=['DELETE'])
+@token_required
+def delete_video(current_user_id, packaging_id):
+    """Delete video file for a packaging record"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT video_path FROM tracking_table WHERE id = ?", (packaging_id,))
+        record = cursor.fetchone()
+        
+        if not record:
+            conn.close()
+            return jsonify({'message': 'Packaging record not found'}), 404
+        
+        if not record['video_path']:
+            conn.close()
+            return jsonify({'message': 'No video associated with this packaging record'}), 404
+        
+        video_path = record['video_path']
+        
+        # Delete file from filesystem
+        if os.path.exists(video_path):
+            os.remove(video_path)
+        
+        # Update database to remove video path
+        cursor.execute("""
+            UPDATE tracking_table 
+            SET video_path = NULL 
+            WHERE id = ?
+        """, (packaging_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'message': 'Video deleted successfully'}), 200
+        
+    except Exception as e:
+        return jsonify({'message': f'Error deleting video: {str(e)}'}), 500
 
 @app.route('/api/health', methods=['GET'])
 def health_check():

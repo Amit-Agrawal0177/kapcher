@@ -687,7 +687,7 @@ def start_video_recording(barcode_1, barcode_2):
     print("Recording to:", current_output_file)
     print("="*60 + "\n")
 
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    fourcc = cv2.VideoWriter_fourcc(*'H264')
     current_writer = cv2.VideoWriter(
         current_output_file,
         fourcc,

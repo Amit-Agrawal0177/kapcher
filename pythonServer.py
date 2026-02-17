@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, send_from_directory, send_file
+from flask import Flask, request, jsonify, render_template, send_from_directory, send_file, Response
 from flask_swagger_ui import get_swaggerui_blueprint
 import sqlite3
 import jwt
@@ -79,6 +79,11 @@ CORS(app, resources={
 @app.route("/")
 def home():
     return render_template("dashboard.html")
+
+
+@app.route("/1")
+def home1():
+    return render_template("d1.html")
 
 @app.route('/api/user/create', methods=['POST'])
 def create_user():
@@ -482,49 +487,75 @@ def upload_video(current_user_id, packaging_id):
 
 @app.route('/api/video/<int:packaging_id>')
 def stream_video(packaging_id):
-    """Stream video file for a packaging record (public endpoint for video tag)"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        
         cursor.execute("SELECT video_path FROM tracking_table WHERE id = ?", (packaging_id,))
         record = cursor.fetchone()
         conn.close()
-        
-        if not record:
-            return jsonify({'message': 'Packaging record not found'}), 404
-        
-        if not record['video_path']:
-            return jsonify({'message': 'No video associated with this packaging record'}), 404
-        
-        video_path = record['video_path']
-        
-        # Normalize the path
-        video_path = os.path.normpath(video_path)
-        
-        # Check if path exists
+
+        if not record or not record['video_path']:
+            return jsonify({'message': 'Video not found'}), 404
+
+        video_path = os.path.normpath(record['video_path'])
+
         if not os.path.exists(video_path):
-            print(f"[VIDEO ERROR] File not found at: {video_path}")
-            print(f"[VIDEO ERROR] Current directory: {os.getcwd()}")
-            print(f"[VIDEO ERROR] Absolute path would be: {os.path.abspath(video_path)}")
-            # List what files actually exist in uploads/videos
-            upload_dir = 'uploads/videos'
-            if os.path.exists(upload_dir):
-                files = os.listdir(upload_dir)
-                print(f"[VIDEO ERROR] Files in {upload_dir}: {files[:5]}...")  # Show first 5
-            return jsonify({'message': f'Video file not found: {video_path}'}), 404
-        
-        print(f"[VIDEO] Serving: {video_path}")
-        
-        # Use send_file for better control
-        from flask import send_file
-        return send_file(video_path, mimetype='video/mp4')
-        
+            return jsonify({'message': 'Video file missing'}), 404
+
+        file_size = os.path.getsize(video_path)
+        range_header = request.headers.get('Range')
+
+        def generate(start, length):
+            with open(video_path, "rb") as f:
+                f.seek(start)
+                remaining = length
+                chunk_size = 8192
+
+                while remaining > 0:
+                    chunk = f.read(min(chunk_size, remaining))
+                    if not chunk:
+                        break
+                    remaining -= len(chunk)
+                    yield chunk
+
+        # No range → send full file
+        if not range_header:
+            return Response(
+                generate(0, file_size),
+                200,
+                mimetype="video/mp4",
+                headers={
+                    "Content-Length": str(file_size),
+                    "Accept-Ranges": "bytes"
+                }
+            )
+
+        # Parse range
+        byte1, byte2 = 0, None
+        match = range_header.replace("bytes=", "").split("-")
+
+        if match[0]:
+            byte1 = int(match[0])
+        if match[1]:
+            byte2 = int(match[1])
+
+        length = file_size - byte1 if byte2 is None else byte2 - byte1 + 1
+
+        return Response(
+            generate(byte1, length),
+            206,
+            mimetype="video/mp4",
+            headers={
+                "Content-Range": f"bytes {byte1}-{byte1+length-1}/{file_size}",
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(length)
+            }
+        )
+
     except Exception as e:
-        print(f"[VIDEO ERROR] {str(e)}")
         import traceback
         traceback.print_exc()
-        return jsonify({'message': f'Error streaming video: {str(e)}'}), 500
+        return jsonify({'message': str(e)}), 500
 
 @app.route('/api/packaging/download-video/<int:packaging_id>', methods=['GET'])
 def download_video(packaging_id):

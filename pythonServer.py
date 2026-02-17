@@ -256,8 +256,7 @@ def list_workstations(current_user_id):
 # ==================== PACKAGING (TRACKING) APIs ====================
 
 @app.route('/api/packaging/create', methods=['POST'])
-@token_required
-def create_packaging(current_user_id):
+def create_packaging():
     """Create a new packaging record"""
     data = request.get_json()
     
@@ -294,8 +293,7 @@ def create_packaging(current_user_id):
         return jsonify({'message': f'Error creating packaging record: {str(e)}'}), 500
 
 @app.route('/api/packaging/update/<int:packaging_id>', methods=['PUT'])
-@token_required
-def update_packaging(current_user_id, packaging_id):
+def update_packaging(packaging_id):
     """Update an existing packaging record"""
     data = request.get_json()
     
@@ -402,8 +400,7 @@ def list_packaging(current_user_id):
         return jsonify({'message': f'Error fetching packaging records: {str(e)}'}), 500
 
 @app.route('/api/packaging/upload-video/<int:packaging_id>', methods=['POST'])
-@token_required
-def upload_video(current_user_id, packaging_id):
+def upload_video(packaging_id):
     """Upload video for an existing packaging record"""
     
     try:

@@ -1,11 +1,11 @@
 {
-    "workstation_name": "T1",
+    "api_base": "http://192.168.0.135:27188",
+    "workstation_name": "1",
     "rtsp_url": "1",
     "frame_rate": 30,
-    "pre_buffer_duration": 10,
+    "pre_buffer_duration": 5,
     "post_buffer_duration": 5,
-    "video_quality": "Low",
+    "video_quality": "High",
     "video_save_path": "Videos",
-    "api_base": "http://192.168.0.135:27189/api",
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJuYW1lIjoiQW1pdCIsInJvbGUiOiJhZG1pbiIsImV4cCI6MTc3MTMzMTk2NH0.rnIObtimHttD9IghWrSXfDn2BqKIQbuUJZ7NRFlfacc"
+    "token": ""
 }

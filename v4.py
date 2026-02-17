@@ -25,7 +25,7 @@ DEFAULT_CONFIG = {
     "post_buffer_duration": 5,
     "video_quality": "High",
     "video_save_path": "Videos",
-    "api_base": "http://192.168.0.135:27189/api",
+    "api_base": "http://192.168.0.135:27189",
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJuYW1lIjoiQW1pdCIsInJvbGUiOiJhZG1pbiIsImV4cCI6MTc3MTMzMTk2NH0.rnIObtimHttD9IghWrSXfDn2BqKIQbuUJZ7NRFlfacc"
 }
 
@@ -234,7 +234,6 @@ class ConfigSetupGUI:
         # Add other settings from default config
         new_config['video_save_path'] = config.get('video_save_path', 'Videos')
         new_config['api_base'] = config.get('api_base', DEFAULT_CONFIG['api_base'])
-        new_config['token'] = config.get('token', DEFAULT_CONFIG['token'])
         
         # Save to file
         if save_config(new_config):
@@ -528,15 +527,11 @@ class VideoRecorderGUI:
 
 # ---------------- API FUNCTIONS ----------------
 
-def get_headers():
-    return {"Authorization": f"Bearer {config.get('token', '')}"}
-
 def create_packaging_api(barcode1):
     try:
         res = requests.post(
-            f"{config.get('api_base')}/packaging/create",
-            json={"bar_code_1": barcode1},
-            headers=get_headers()
+            f"{config.get('api_base')}/api/packaging/create",
+            json={"bar_code_1": barcode1}
         )
 
         if res.status_code == 201:
@@ -569,12 +564,11 @@ def create_packaging_api(barcode1):
 def update_packaging_api(packaging_id, barcode2):
     try:
         res = requests.put(
-            f"{config.get('api_base')}/packaging/update/{packaging_id}",
+            f"{config.get('api_base')}/api/packaging/update/{packaging_id}",
             json={
                 "bar_code_2": barcode2,
                 "end_time": datetime.datetime.now().isoformat()
-            },
-            headers=get_headers()
+            }
         )
 
         print("Update response:", res.text)
@@ -602,9 +596,8 @@ def upload_video_api(packaging_id, video_path):
             files = {"video": f}
 
             res = requests.post(
-                f"{config.get('api_base')}/packaging/upload-video/{packaging_id}",
-                files=files,
-                headers=get_headers()
+                f"{config.get('api_base')}/api/packaging/upload-video/{packaging_id}",
+                files=files
             )
 
         if res.status_code == 200:

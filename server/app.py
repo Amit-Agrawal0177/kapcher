@@ -1,6 +1,83 @@
+import sqlite3
+
+conn = sqlite3.connect("database.db")
+cursor = conn.cursor()
+
+# ---------------- USER TABLE ----------------
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS user_table (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    password TEXT,
+    role TEXT CHECK(role IN ('admin', 'guest')),
+    is_active TEXT DEFAULT 'y' CHECK(is_active IN ('y','n')),
+    doa DATETIME DEFAULT CURRENT_TIMESTAMP
+)
+""")
+
+cursor.execute("SELECT id FROM user_table WHERE id = 1")
+user = cursor.fetchone()
+
+if user is None:
+    cursor.execute("""
+        INSERT INTO user_table (id, name, password, role)
+        VALUES (1, 'ADMIN', 'Admin123', 'admin')
+    """)
+    conn.commit()
+
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS workstation (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    workstation_name TEXT,
+    system_ip TEXT,
+    rtsp_url TEXT,
+    frame_rate INTEGER,
+    pre_buffer_duration INTEGER,
+    post_buffer_duration INTEGER,
+    video_quality TEXT,
+    video_save_path TEXT,
+    api_base TEXT,
+    is_active TEXT DEFAULT 'y' CHECK(is_active IN ('y','n')),
+    doa DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+""")
+
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS tracking_table (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ws_id INTEGER,
+    bar_code_1 TEXT,
+    start_time DATETIME,
+    bar_code_2 TEXT,
+    end_time DATETIME,
+    video_path TEXT,
+    is_active TEXT DEFAULT 'y' CHECK(is_active IN ('y','n')),
+    doa DATETIME DEFAULT CURRENT_TIMESTAMP
+)
+""")
+
+conn.commit()
+conn.close()
+
+print("✅ Tables created successfully")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 from flask import Flask, request, jsonify, render_template, send_from_directory, send_file, Response
 from flask_swagger_ui import get_swaggerui_blueprint
-import sqlite3
 import jwt
 import datetime
 from functools import wraps
@@ -12,27 +89,23 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this-in-production'
 
-# Video upload configuration
 UPLOAD_FOLDER = 'uploads/videos'
 ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov', 'mkv', 'wmv', 'flv', 'webm'}
-MAX_FILE_SIZE = 500 * 1024 * 1024  # 500 MB
+MAX_FILE_SIZE = 500 * 1024 * 1024 
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
 
-# Create upload folder if it doesn't exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Database connection helper
 def get_db_connection():
     conn = sqlite3.connect('database.db')
     conn.row_factory = sqlite3.Row
     return conn
 
-# Token required decorator
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -79,11 +152,6 @@ CORS(app, resources={
 @app.route("/")
 def home():
     return render_template("dashboard.html")
-
-
-@app.route("/1")
-def home1():
-    return render_template("d1.html")
 
 @app.route('/api/user/create', methods=['POST'])
 def create_user():
@@ -132,7 +200,7 @@ def login_user():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute("SELECT * FROM user_table WHERE name = ? AND is_active = 'y'", (data['name'],))
+        cursor.execute("SELECT * FROM user_table WHERE name = ? AND password = ? AND is_active = 'y'", (data['name'], data['password'],))
         user = cursor.fetchone()
         conn.close()
         

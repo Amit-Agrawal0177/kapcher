@@ -9,6 +9,7 @@ cursor.execute("""
 CREATE TABLE IF NOT EXISTS user_table (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT,
+    password TEXT,
     role TEXT CHECK(role IN ('admin', 'guest')),
     is_active TEXT DEFAULT 'y' CHECK(is_active IN ('y','n')),
     doa DATETIME DEFAULT CURRENT_TIMESTAMP

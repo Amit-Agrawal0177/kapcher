@@ -1,11 +1,11 @@
 {
-    "api_base": "http://192.168.0.135:27188",
-    "workstation_name": "1",
-    "rtsp_url": "1",
+    "workstation_name": "ws32",
+    "rtsp_url": "0",
+    "api_base": "http://192.168.0.135:27189",
     "frame_rate": 30,
     "pre_buffer_duration": 5,
     "post_buffer_duration": 5,
     "video_quality": "High",
     "video_save_path": "Videos",
-    "token": ""
+    "ws_id": 31
 }

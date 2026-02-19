@@ -637,6 +637,12 @@
             font-weight: 700;
         }
 
+        .list-table td.list-ws,
+        .list-table th.list-ws {
+            text-align: center !important;
+            vertical-align: middle;
+        }
+
         .list-time {
             font-size: 12px;
             color: var(--gray-500);
@@ -1095,6 +1101,10 @@
                     <span class="detail-value"><span class="order-id-value">${record.bar_code_1 || 'N/A'}</span></span>
                 </div>
                 <div class="detail-row">
+                    <span class="detail-label">Workstation</span>
+                    <span class="detail-value"><span>${record.workstation_name || 'N/A'}</span></span>
+                </div>
+                <div class="detail-row">
                     <span class="detail-label">Start Time</span>
                     <span class="detail-value">${startTime}</span>
                 </div>
@@ -1151,6 +1161,7 @@
                             <th>Pkg ID</th>
                             <th>Order ID</th>
                             <th>Status</th>
+                            <th class="list-ws">Workstation</th>
                             <th>Start Time</th>
                             <th>End Time</th>
                             <th>Video</th>
@@ -1174,6 +1185,7 @@
                 <td><span class="list-pkg-id">#${record.id}</span></td>
                 <td><span class="list-order-id">${record.bar_code_1 || 'N/A'}</span></td>
                 <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                <td class="list-ws"><span>${record.workstation_name || 'N/A'}</span></td>
                 <td><span class="list-time">${startTime}</span></td>
                 <td><span class="list-time">${endTime}</span></td>
                 <td class="list-video-cell">

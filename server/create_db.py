@@ -20,21 +20,24 @@ cursor.execute("""
 CREATE TABLE IF NOT EXISTS workstation (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     workstation_name TEXT,
-    system_mac_id TEXT,
-    camera_url TEXT,
-    camera_quality TEXT,
-    pre_video_time INTEGER,
-    process_video_time INTEGER,
-    fps INTEGER,
+    system_ip TEXT,
+    rtsp_url TEXT,
+    frame_rate INTEGER,
+    pre_buffer_duration INTEGER,
+    post_buffer_duration INTEGER,
+    video_quality TEXT,
+    video_save_path TEXT,
+    api_base TEXT,
     is_active TEXT DEFAULT 'y' CHECK(is_active IN ('y','n')),
     doa DATETIME DEFAULT CURRENT_TIMESTAMP
-)
+);
 """)
 
 # ---------------- TRACKING TABLE ----------------
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS tracking_table (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ws_id INTEGER,
     bar_code_1 TEXT,
     start_time DATETIME,
     bar_code_2 TEXT,

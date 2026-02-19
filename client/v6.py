@@ -10,13 +10,17 @@ from queue import Queue, Empty
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox
 import json
+from PIL import Image, ImageDraw, ImageFont
+import io
+import socket
 
 # ─────────────────────────────────────────────
 #  CONFIG
 # ─────────────────────────────────────────────
 
 CONFIG_FILE = "config.json"
-SETTINGS_PASSWORD = "11225577"
+SETTINGS_PASSWORD = "1"
+LOGO_PATH = "logo.png"  # Path to your Kapcher logo
 
 DEFAULT_CONFIG = {
     "workstation_name": "",
@@ -27,36 +31,52 @@ DEFAULT_CONFIG = {
     "video_quality": "High",
     "video_save_path": "Videos",
     "api_base": "http://192.168.0.135:27189",
-    "token": ""
+    "system_ip": "",
+    "ws_id" : 0
 }
 
+# Light Green + White color palette (Kapcher inspired)
 C = {
-    "bg":       "#0d1117",
-    "surface":  "#161b22",
-    "card":     "#1c2128",
-    "border":   "#30363d",
-    "accent":   "#58a6ff",
-    "accent2":  "#3fb950",
-    "warn":     "#d29922",
-    "danger":   "#f85149",
-    "text":     "#e6edf3",
-    "muted":    "#8b949e",
-    "dim":      "#484f58",
-    "rec":      "#ff4444",
-    "input_bg": "#0d1117",
-    "btn_bg":   "#21262d",
-    "btn_hover":"#30363d",
+    "text":         "#1f2937",
+    "bg":           "#f8fafb",      # Off white
+    "surface":      "#ffffff",      # Pure white
+    "card":         "#f5f7fa",      # Light gray-white
+    "border":       "#e0e8f0",      # Light border
+    "accent":       "#10b981",      # Light/Medium green (Kapcher cyan-green)
+    "accent2":      "#059669",      # Dark green
+    "accent3":      "#34d399",      # Bright green
+    "warn":         "#f59e0b",      # Amber
+    "danger":       "#ef4444",      # Red
+    "text":         "#1f2937",      # Dark gray/charcoal
+    "muted":        "#6b7280",      # Medium gray
+    "dim":          "#9ca3af",      # Light gray
+    "rec":          "#ff5566",      # Bright red
+    "input_bg":     "#ffffff",      # White
+    "btn_bg":       "#10b981",      # Green button
+    "btn_hover":    "#059669",      # Dark green hover
+    "success":      "#10b981",      # Green
+    "green_light":  "#d1fae5",      # Very light green background
 }
 
 FONTS = {
-    "mono":    ("Consolas", 10),
-    "ui":      ("Segoe UI", 10),
-    "ui_sm":   ("Segoe UI", 9),
-    "ui_bold": ("Segoe UI", 10, "bold"),
-    "ui_lg":   ("Segoe UI", 12, "bold"),
-    "ui_xl":   ("Segoe UI", 16, "bold"),
-    "ui_hd":   ("Segoe UI", 20, "bold"),
+    "mono":    ("'Courier New'", 10),
+    "ui":      ("'Segoe UI'", 10),
+    "ui_sm":   ("'Segoe UI'", 9),
+    "ui_bold": ("'Segoe UI'", 10, "bold"),
+    "ui_lg":   ("'Segoe UI'", 12, "bold"),
+    "ui_xl":   ("'Segoe UI'", 16, "bold"),
+    "ui_hd":   ("'Segoe UI'", 20, "bold"),
+    "display": ("'Segoe UI'", 32, "bold"),
 }
+
+def get_system_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+    finally:
+        s.close()
+    return ip
 
 def load_config():
     if os.path.exists(CONFIG_FILE):
@@ -75,6 +95,119 @@ def save_config(cfg):
     except Exception as e:
         print(f"Error saving config: {e}")
         return False
+    
+# ─────────────────────────────────────────────
+#  SPLASH SCREEN WITH LOGO
+# ─────────────────────────────────────────────
+
+class SplashScreen:
+    def __init__(self, parent, duration=3.0, logo_path=None):
+        self.root = tk.Toplevel(parent)
+        self.duration = duration
+        self.logo_path = logo_path
+        self.root.attributes('-topmost', True)
+        self.root.geometry("1000x700")
+        self.root.configure(bg=C["surface"])
+        
+        # Remove window decorations
+        try:
+            self.root.attributes('-type', 'splash')
+        except:
+            pass
+        
+        # Center window
+        self.root.update_idletasks()
+        x = (self.root.winfo_screenwidth() // 2) - 500
+        y = (self.root.winfo_screenheight() // 2) - 350
+        self.root.geometry(f"+{x}+{y}")
+        
+        # Main container
+        container = tk.Frame(self.root, bg=C["surface"])
+        container.pack(fill=tk.BOTH, expand=True)
+        
+        # Top green accent bar
+        tk.Frame(container, bg=C["accent"], height=6).pack(fill=tk.X)
+        
+        # Content area
+        content = tk.Frame(container, bg=C["surface"])
+        content.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
+        
+        # Logo area
+        logo_frame = tk.Frame(content, bg=C["surface"])
+        logo_frame.pack(expand=True, pady=(40, 20))
+        
+        # Try to load and display the actual logo
+        if self.logo_path and os.path.exists(self.logo_path):
+            try:
+                logo_img = Image.open(self.logo_path)
+                # Resize logo to fit
+                logo_img = logo_img.resize((300, 100), Image.Resampling.LANCZOS)
+                self.logo_photo = tk.PhotoImage(file=self.logo_path)
+                logo_label = tk.Label(logo_frame, image=self.logo_photo, bg=C["surface"])
+                logo_label.pack()
+            except Exception as e:
+                # Fallback to text if image loading fails
+                self._draw_logo_text(logo_frame)
+        else:
+            self._draw_logo_text(logo_frame)
+        
+        # Title area
+        title_frame = tk.Frame(content, bg=C["surface"])
+        title_frame.pack(pady=(0, 10))
+        
+        tk.Label(title_frame, text="Kapcher", font=("Segoe UI", 48, "bold"),
+                bg=C["surface"], fg=C["accent2"]).pack()
+        
+        # Subtitle
+        tk.Label(content, text="Professional Video Recording System",
+                font=("Segoe UI", 13), bg=C["surface"], fg=C["muted"]).pack(pady=(0, 40))
+        
+        # Loading animation
+        loading_frame = tk.Frame(content, bg=C["surface"])
+        loading_frame.pack(pady=(20, 0))
+        
+        tk.Label(loading_frame, text="Initializing System…", font=("Segoe UI", 11),
+                bg=C["surface"], fg=C["muted"]).pack()
+        
+        # Animated dots
+        self.dots_label = tk.Label(loading_frame, text="●  ●  ●", font=("Segoe UI", 12),
+                                   bg=C["surface"], fg=C["accent"])
+        self.dots_label.pack(pady=10)
+        
+        # Bottom green accent bar
+        tk.Frame(container, bg=C["accent2"], height=6).pack(fill=tk.X, side=tk.BOTTOM)
+        
+        # Animation state
+        self.dot_frame = 0
+        self.is_running = True
+        
+        # Start animation
+        self.animate_dots()
+        
+        # Auto-close after duration
+        self.root.after(int(duration * 1000), self.close)
+    
+    def _draw_logo_text(self, parent):
+        """Fallback logo display using text"""
+        logo_text = tk.Label(parent, text="⭕", font=("Arial", 80),
+                            bg=C["surface"], fg=C["accent"])
+        logo_text.pack()
+    
+    def animate_dots(self):
+        """Animate loading dots - FIXED to avoid lambda issues"""
+        if self.is_running and self.root.winfo_exists():
+            frames = ["●  ●  ●", "●  ●  ", "●  ", ""]
+            self.dots_label.config(text=frames[self.dot_frame % len(frames)])
+            self.dot_frame = (self.dot_frame + 1) % len(frames)
+            self.root.after(200, self.animate_dots)
+    
+    def close(self):
+        """Close splash screen"""
+        try:
+            self.is_running = False
+            self.root.destroy()
+        except:
+            pass
 
 # ─────────────────────────────────────────────
 #  GLOBALS
@@ -98,7 +231,7 @@ task_lock = threading.Lock()
 last_barcode_1 = ""
 last_barcode_2 = ""
 gui = None
-dialog_open = False   # prevents _tick from stealing focus when a dialog is visible
+dialog_open = False
 
 # ─────────────────────────────────────────────
 #  WIDGET HELPERS
@@ -111,7 +244,7 @@ def mk_entry(parent, width=30, show=None, **kw):
         insertbackground=C["accent"],
         relief=tk.FLAT, bd=0,
         width=width,
-        highlightthickness=1,
+        highlightthickness=2,
         highlightbackground=C["border"],
         highlightcolor=C["accent"],
     )
@@ -120,18 +253,28 @@ def mk_entry(parent, width=30, show=None, **kw):
     opts.update(kw)
     return tk.Entry(parent, **opts)
 
-def mk_btn(parent, text, cmd, color=None, fg=None, px=18, py=8):
-    return tk.Button(
+def mk_btn(parent, text, cmd, color=None, fg=None, px=18, py=8, hover=True):
+    btn = tk.Button(
         parent, text=text, command=cmd,
         font=FONTS["ui_bold"],
         bg=color or C["btn_bg"],
         fg=fg or C["text"],
-        activebackground=C["btn_hover"],
-        activeforeground=C["text"],
+        activebackground=C["btn_hover"] if hover else (color or C["btn_bg"]),
+        activeforeground=C["surface"],
         relief=tk.FLAT, bd=0,
         padx=px, pady=py,
         cursor="hand2",
     )
+    
+    if hover:
+        def on_enter(e, b=btn, c=color):
+            b.config(bg=C["btn_hover"])
+        def on_leave(e, b=btn, c=color):
+            b.config(bg=c or C["btn_bg"])
+        btn.bind("<Enter>", on_enter)
+        btn.bind("<Leave>", on_leave)
+    
+    return btn
 
 class ScrollFrame(tk.Frame):
     """Vertically scrollable container."""
@@ -170,22 +313,29 @@ class ConfigSetupGUI:
         self.on_complete = on_complete
         self.entries = {}
 
-        root.title("System Configuration")
-        root.geometry("640x680")
+        root.title("Kapcher — System Configuration")
+        root.geometry("740x850")
         root.configure(bg=C["bg"])
         root.resizable(True, True)
 
-        tk.Frame(root, bg=C["accent"], height=4).pack(fill=tk.X)
+        # Top green accent bar
+        tk.Frame(root, bg=C["accent"], height=6).pack(fill=tk.X)
 
         sf = ScrollFrame(root)
         sf.pack(fill=tk.BOTH, expand=True)
         w = sf.inner
         w.configure(padx=48, pady=32)
 
-        tk.Label(w, text="⚙  System Configuration",
-                 font=FONTS["ui_hd"], bg=C["bg"], fg=C["text"]).pack(anchor=tk.W)
-        tk.Label(w, text="Configure your workstation before starting.",
-                 font=FONTS["ui_sm"], bg=C["bg"], fg=C["muted"]).pack(anchor=tk.W, pady=(4,28))
+        # Header with icon
+        header_frame = tk.Frame(w, bg=C["bg"])
+        header_frame.pack(anchor=tk.W, pady=(0, 20))
+        tk.Label(header_frame, text="🟢  ", font=("Segoe UI", 28),
+                bg=C["bg"], fg=C["accent"]).pack(side=tk.LEFT)
+        tk.Label(header_frame, text="System Configuration",
+                 font=FONTS["display"], bg=C["bg"], fg=C["text"]).pack(side=tk.LEFT)
+
+        tk.Label(w, text="Configure your Kapcher workstation before starting.",
+                 font=FONTS["ui_sm"], bg=C["bg"], fg=C["muted"]).pack(anchor=tk.W, pady=(0,28))
 
         for label, key, ph in [
             ("Workstation Name",         "workstation_name",    "e.g. Line-A Station 3"),
@@ -207,18 +357,18 @@ class ConfigSetupGUI:
             tk.Radiobutton(qr, text=f" {q} ({lbl})",
                            variable=self.quality_var, value=q,
                            font=FONTS["ui"], bg=C["bg"], fg=C["text"],
-                           selectcolor=C["surface"],
+                           selectcolor=C["green_light"],
                            activebackground=C["bg"],
                            activeforeground=C["text"]).pack(side=tk.LEFT, padx=(0,16))
 
-        # Bottom bar (outside scroll so it's always visible)
-        bar = tk.Frame(root, bg=C["surface"], padx=48, pady=14)
+        # Bottom bar
+        bar = tk.Frame(root, bg=C["bg"], padx=48, pady=14)
         bar.pack(fill=tk.X, side=tk.BOTTOM)
         tk.Frame(bar, bg=C["border"], height=1).pack(fill=tk.X, pady=(0,12))
-        mk_btn(bar, "  Save & Start  ", self._save,
-               color=C["accent"], fg="#0d1117", py=10).pack(side=tk.LEFT, padx=(0,10))
+        mk_btn(bar, "  ✓ Save & Start  ", self._save,
+               color=C["accent"], fg=C["text"], py=10).pack(side=tk.LEFT, padx=(0,10))
         mk_btn(bar, "  Cancel  ", root.quit,
-               color=C["danger"], py=10).pack(side=tk.LEFT)
+               color=C["danger"], fg=C["text"], py=10).pack(side=tk.LEFT)
 
     def _field(self, parent, label, key, placeholder=""):
         grp = tk.Frame(parent, bg=C["bg"])
@@ -241,19 +391,12 @@ class ConfigSetupGUI:
 
     def _save(self):
         global config
-        ph_skip = {
-            "workstation_name": "e.g. Line-A Station 3",
-            "rtsp_url":  "rtsp://user:pass@ip:port  or  0",
-            "api_base":  "http://192.168.0.135:27189",
-        }
         new = {}
-        new['api_base'] = config.get('api_base', DEFAULT_CONFIG['api_base'])
-        
+
         for key, e in self.entries.items():
             v = e.get().strip()
-            if v == ph_skip.get(key,""): v = ""
-            print(v)
-            if not v and key != "api_base":
+            
+            if not v:
                 messagebox.showerror("Missing", f"Please fill in: {key.replace('_',' ').title()}", parent=self.root)
                 return
             if key in ['frame_rate','pre_buffer_duration','post_buffer_duration']:
@@ -263,20 +406,27 @@ class ConfigSetupGUI:
                 except:
                     messagebox.showerror("Invalid", f"{key.replace('_',' ').title()} must be a positive integer", parent=self.root)
                     return
+                
             new[key] = v
         new['video_quality']  = self.quality_var.get()
         new['video_save_path']= config.get('video_save_path','Videos')
-        new['token']          = config.get('token','')
+        new['system_ip'] = get_system_ip()
 
-        if save_config(new):
-            config = new
-            self.root.destroy()
-            self.on_complete()
+        ws_id = create_workstation_api(new)
+
+        if ws_id is not None:   
+            new['ws_id'] = ws_id    
+            if save_config(new):
+                config = new
+                self.root.destroy()
+                self.on_complete()
+            else:
+                messagebox.showerror("Error","Failed to save configuration", parent=self.root)
         else:
-            messagebox.showerror("Error","Failed to save configuration", parent=self.root)
+            messagebox.showerror("Error","Failed to connect Server", parent=self.root)
 
 # ─────────────────────────────────────────────
-#  SETTINGS DIALOG  (password-protected)
+#  SETTINGS DIALOG
 # ─────────────────────────────────────────────
 
 class SettingsDialog:
@@ -314,7 +464,7 @@ class SettingsDialog:
                 parent=self.parent)
             return
 
-        win, close = self._make_win("Settings — Authentication", 440, 270)
+        win, close = self._make_win("Settings — Authentication", 480, 300)
         tk.Frame(win, bg=C["accent"], height=3).pack(fill=tk.X)
 
         body = tk.Frame(win, bg=C["bg"], padx=36, pady=28)
@@ -349,14 +499,16 @@ class SettingsDialog:
 
         win.after(80, pw.focus_set)
         pw.bind('<Return>', lambda e: check())
-        mk_btn(br, "  Unlock  ", check, color=C["accent"], fg="#0d1117", py=8).pack(side=tk.LEFT, padx=(0,10))
-        mk_btn(br, "  Cancel  ", close, color=C["btn_bg"], py=8).pack(side=tk.LEFT)
+        mk_btn(br, "  Unlock  ", check, color=C["accent"], fg=C["text"], py=8).pack(side=tk.LEFT, padx=(0,10))
+        mk_btn(br, "  Cancel  ", close, color=C["btn_bg"], fg=C["text"], py=8).pack(side=tk.LEFT)
 
     def _open_settings(self):
-        win, close = self._make_win("Settings", 660, 580, resizable=True)
+        global config
+        config = load_config() or DEFAULT_CONFIG.copy()
+
+        win, close = self._make_win("Settings", 720, 850, resizable=True)
         tk.Frame(win, bg=C["accent"], height=3).pack(fill=tk.X)
 
-        # Scrollable content
         sf = ScrollFrame(win)
         sf.pack(fill=tk.BOTH, expand=True)
         w = sf.inner
@@ -386,7 +538,6 @@ class SettingsDialog:
             if v: e.insert(0, str(v))
             self._ents[key] = e
 
-        # Quality
         tk.Label(w, text="Video Quality", font=FONTS["ui_bold"],
                  bg=C["bg"], fg=C["muted"]).pack(anchor=tk.W, pady=(4,6))
         self._qv = tk.StringVar(value=config.get('video_quality','High'))
@@ -396,12 +547,11 @@ class SettingsDialog:
             tk.Radiobutton(qr, text=f" {q} ({lbl})",
                            variable=self._qv, value=q,
                            font=FONTS["ui"], bg=C["bg"], fg=C["text"],
-                           selectcolor=C["surface"],
+                           selectcolor=C["green_light"],
                            activebackground=C["bg"],
                            activeforeground=C["text"]).pack(side=tk.LEFT, padx=(0,16))
 
-        # Fixed bottom bar — packed to BOTTOM of win (not inside scrollframe)
-        bar = tk.Frame(win, bg=C["surface"], padx=40, pady=14)
+        bar = tk.Frame(win, bg=C["bg"], padx=40, pady=14)
         bar.pack(fill=tk.X, side=tk.BOTTOM)
         tk.Frame(bar, bg=C["border"], height=1).pack(fill=tk.X, pady=(0,12))
 
@@ -423,23 +573,30 @@ class SettingsDialog:
                 new[key] = v
             new['video_quality']   = self._qv.get()
             new['video_save_path'] = config.get('video_save_path','Videos')
-            new['token']           = config.get('token','')
-            if save_config(new):
-                config = new
-                dialog_open = False
-                try: win.grab_release()
-                except: pass
-                win.destroy()
-                messagebox.showinfo("Saved",
-                    "Configuration saved!\nRTSP / FPS / Resolution changes take effect on next start.",
-                    parent=self.parent)
+            r = update_workstation_api(config['ws_id'], new)
+            
+            if r == True:
+                new['ws_id'] = config['ws_id']
+
+                if save_config(new):
+                    config = new
+                    dialog_open = False
+                    try: win.grab_release()
+                    except: pass
+                    win.destroy()
+                    messagebox.showinfo("Saved",
+                        "Configuration saved!\nRTSP / FPS / Resolution changes take effect on next start.",
+                        parent=self.parent)
+                else:
+                    messagebox.showerror("Error","Failed to save configuration.", parent=win)
+
             else:
-                messagebox.showerror("Error","Failed to save configuration.", parent=win)
+                messagebox.showerror("Error", r, parent=win)
 
         mk_btn(bar, "  Save Changes  ", do_save,
-               color=C["accent"], fg="#0d1117", py=10).pack(side=tk.LEFT, padx=(0,10))
+               color=C["accent"], fg=C["text"], py=10).pack(side=tk.LEFT, padx=(0,10))
         mk_btn(bar, "  Cancel  ", close,
-               color=C["btn_bg"], py=10).pack(side=tk.LEFT)
+               color=C["btn_bg"], fg=C["text"], py=10).pack(side=tk.LEFT)
 
 # ─────────────────────────────────────────────
 #  MAIN GUI
@@ -448,10 +605,10 @@ class SettingsDialog:
 class VideoRecorderGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title(f"PackagingOps — {config.get('workstation_name','Workstation')}")
-        self.root.geometry("1120x740")
+        self.root.title(f"Kapcher — {config.get('workstation_name','Workstation')}")
+        self.root.geometry("1220x820")
         self.root.configure(bg=C["bg"])
-        self.root.minsize(900, 640)
+        self.root.minsize(1000, 700)
         self._blink_state = True
         self._blink_job = None
 
@@ -469,52 +626,65 @@ class VideoRecorderGUI:
             font=FONTS["ui_bold"], relief=tk.FLAT, borderwidth=0)
         style.map('Pkg.Treeview',
             background=[('selected',C["accent"])],
-            foreground=[('selected',"#0d1117")])
+            foreground=[('selected',C["surface"])])
 
         self._build(root)
+        self.root.bind_all("<Tab>", lambda e: self.barcode_entry.focus_set())
         self.root.after(100, lambda: self.barcode_entry.focus_set())
+        self.tick_id = None
         self._tick()
 
     def _build(self, root):
         root.columnconfigure(0, weight=1)
         root.rowconfigure(2, weight=1)
-        tk.Frame(root, bg=C["accent"], height=3).grid(row=0, column=0, sticky="ew")
+        tk.Frame(root, bg=C["accent"], height=6).grid(row=0, column=0, sticky="ew")
         self._build_header(root)
         body = tk.Frame(root, bg=C["bg"])
         body.grid(row=2, column=0, sticky="nsew", padx=16, pady=12)
-        body.columnconfigure(0, weight=0, minsize=310)
+        body.columnconfigure(0, weight=0, minsize=340)
         body.columnconfigure(1, weight=1)
         body.rowconfigure(0, weight=1)
         self._build_left(body)
         self._build_right(body)
 
     def _build_header(self, root):
-        hdr = tk.Frame(root, bg=C["surface"], height=64)
+        hdr = tk.Frame(root, bg=C["surface"], height=72)
         hdr.grid(row=1, column=0, sticky="ew")
         hdr.grid_propagate(False)
         tk.Frame(hdr, bg=C["accent"], width=5).pack(side=tk.LEFT, fill=tk.Y)
-        tk.Label(hdr, text=f"  🖥  {config.get('workstation_name','Workstation')}",
-                 font=FONTS["ui_xl"], bg=C["surface"], fg=C["text"]).pack(side=tk.LEFT, padx=(12,0))
+        
+        # Logo + title
+        title_frame = tk.Frame(hdr, bg=C["surface"])
+        title_frame.pack(side=tk.LEFT, padx=(12,0))
+        tk.Label(title_frame, text="🟢", font=("Segoe UI", 32), 
+                bg=C["surface"], fg=C["accent"]).pack(side=tk.LEFT, padx=(0,8))
+        tk.Label(title_frame, text=f"  {config.get('workstation_name','Workstation')}",
+                 font=FONTS["display"], bg=C["surface"], fg=C["text"]).pack(side=tk.LEFT)
+        
         self.header_status = tk.Label(hdr, text="● IDLE",
                  font=FONTS["ui_bold"], bg=C["surface"], fg=C["muted"], padx=14, pady=4)
         self.header_status.pack(side=tk.LEFT, padx=18)
+        
         # Settings on right
         mk_btn(hdr, "⚙  Settings", self.open_settings,
-               color=C["btn_bg"], py=6, px=16).pack(side=tk.RIGHT, padx=(0,16))
+               color=C["btn_bg"], fg=C["text"], py=8, px=16).pack(side=tk.RIGHT, padx=(0,16), pady=8)
+        
         # Barcode input
         bc = tk.Frame(hdr, bg=C["surface"])
         bc.pack(side=tk.LEFT, expand=True, fill=tk.Y, padx=20)
         tk.Label(bc, text="SCAN", font=FONTS["ui_sm"],
                  bg=C["surface"], fg=C["muted"]).pack(side=tk.LEFT, padx=(0,8))
-        self.barcode_entry = tk.Entry(bc, font=("Consolas",14),
+        self.barcode_entry = tk.Entry(bc, font=("Courier New", 15, "bold"),
             bg=C["input_bg"], fg=C["accent"],
             insertbackground=C["accent"],
             relief=tk.FLAT, bd=0, width=32,
             highlightthickness=2,
             highlightbackground=C["border"],
             highlightcolor=C["accent"])
-        self.barcode_entry.pack(side=tk.LEFT, ipady=8)
+        self.barcode_entry.pack(side=tk.LEFT, ipady=9)
         self.barcode_entry.bind('<Return>', self.on_barcode_enter)
+        self.barcode_entry.bind("<Tab>", lambda e: "break")
+        self.barcode_entry.bind("<Shift-Tab>", lambda e: "break")
 
     def _card(self, parent, title=""):
         outer = tk.Frame(parent, bg=C["border"], bd=1)
@@ -527,48 +697,51 @@ class VideoRecorderGUI:
         return inner
 
     def _build_left(self, body):
-        lp = tk.Frame(body, bg=C["bg"], width=310)
+        lp = tk.Frame(body, bg=C["bg"], width=340)
         lp.grid(row=0, column=0, sticky="ns", padx=(0,12))
         lp.grid_propagate(False)
         lp.columnconfigure(0, weight=1)
 
-        sc = self._card(lp, "STATUS")
+        # Status card
+        sc = self._card(lp, "🟢 STATUS")
         sc.pack(fill=tk.X, pady=(0,10))
         dr = tk.Frame(sc, bg=C["card"])
         dr.pack(fill=tk.X, padx=16, pady=14)
-        self.status_ind = tk.Canvas(dr, width=14, height=14,
+        self.status_ind = tk.Canvas(dr, width=16, height=16,
                                     bg=C["card"], highlightthickness=0)
         self.status_ind.pack(side=tk.LEFT)
-        self._dot = self.status_ind.create_oval(2,2,12,12, fill=C["accent2"], outline="")
+        self._dot = self.status_ind.create_oval(2,2,14,14, fill=C["accent2"], outline="")
         self.status_label = tk.Label(dr, text="Waiting for barcode…",
                                      font=FONTS["ui_bold"], bg=C["card"], fg=C["accent2"])
-        self.status_label.pack(side=tk.LEFT, padx=10)
+        self.status_label.pack(side=tk.LEFT, padx=12)
 
-        sess = self._card(lp, "CURRENT SESSION")
+        # Session card
+        sess = self._card(lp, "📹 CURRENT SESSION")
         sess.pack(fill=tk.X, pady=(0,10))
         self._sr = {}
         for key, lbl in [("pkg_id","Packaging ID"),("barcode1","Order ID"),
                           ("barcode2","Barcode 2"),("frames","Frames")]:
             row = tk.Frame(sess, bg=C["card"])
-            row.pack(fill=tk.X, padx=16, pady=3)
+            row.pack(fill=tk.X, padx=16, pady=4)
             tk.Label(row, text=lbl, font=FONTS["ui_sm"],
-                     bg=C["card"], fg=C["muted"], width=15, anchor=tk.W).pack(side=tk.LEFT)
+                     bg=C["card"], fg=C["muted"], width=16, anchor=tk.W).pack(side=tk.LEFT)
             v = tk.Label(row, text="—", font=FONTS["mono"],
-                         bg=C["card"], fg=C["text"], anchor=tk.W)
+                         bg=C["card"], fg=C["accent"], anchor=tk.W)
             v.pack(side=tk.LEFT, fill=tk.X, expand=True)
             self._sr[key] = v
         tk.Frame(sess, bg=C["card"], height=8).pack()
 
-        sc2 = self._card(lp, "LAST SCAN")
+        # Last scan card
+        sc2 = self._card(lp, "📊 LAST SCAN")
         sc2.pack(fill=tk.BOTH, expand=True)
         self.last_bc_lbl = tk.Label(sc2, text="—",
-                                    font=("Consolas",22,"bold"),
+                                    font=("Courier New", 24, "bold"),
                                     bg=C["card"], fg=C["accent2"],
-                                    wraplength=270, justify=tk.CENTER)
-        self.last_bc_lbl.pack(expand=True, pady=18, padx=16)
+                                    wraplength=300, justify=tk.CENTER)
+        self.last_bc_lbl.pack(expand=True, pady=20, padx=16)
         self.scan_sub = tk.Label(sc2, text="scan #1 — start recording",
                                  font=FONTS["ui_sm"], bg=C["card"], fg=C["muted"])
-        self.scan_sub.pack(pady=(0,14))
+        self.scan_sub.pack(pady=(0,16))
 
     def _build_right(self, body):
         rp = tk.Frame(body, bg=C["bg"])
@@ -576,14 +749,16 @@ class VideoRecorderGUI:
         rp.columnconfigure(0, weight=1)
         rp.rowconfigure(1, weight=1)
 
+        # Title bar
         th = tk.Frame(rp, bg=C["bg"])
-        th.grid(row=0, column=0, sticky="ew", pady=(0,8))
-        tk.Label(th, text="PACKAGING TASKS", font=FONTS["ui_lg"],
+        th.grid(row=0, column=0, sticky="ew", pady=(0,10))
+        tk.Label(th, text="📋 PACKAGING TASKS", font=FONTS["ui_lg"],
                  bg=C["bg"], fg=C["text"]).pack(side=tk.LEFT)
         self.task_count = tk.Label(th, text="0 records", font=FONTS["ui_sm"],
                                    bg=C["bg"], fg=C["muted"])
         self.task_count.pack(side=tk.RIGHT)
 
+        # Task table
         tbl = tk.Frame(rp, bg=C["border"], bd=1)
         tbl.grid(row=1, column=0, sticky="nsew")
         tbl.columnconfigure(0, weight=1)
@@ -591,7 +766,7 @@ class VideoRecorderGUI:
         cols = ('ID','Order ID','Barcode 2','Status','Time')
         self.task_tree = ttk.Treeview(tbl, columns=cols,
                                       show='headings', style='Pkg.Treeview')
-        for col, w in zip(cols, [90,150,150,110,160]):
+        for col, w in zip(cols, [100,160,160,120,180]):
             self.task_tree.heading(col, text=col.upper())
             self.task_tree.column(col, width=w, minwidth=60, anchor=tk.W)
         self.task_tree.tag_configure('recording', foreground=C["rec"])
@@ -603,22 +778,21 @@ class VideoRecorderGUI:
         self.task_tree.grid(row=0, column=0, sticky="nsew")
         sb2.grid(row=0, column=1, sticky="ns")
 
+        # Log section
         lw = tk.Frame(rp, bg=C["bg"])
-        lw.grid(row=2, column=0, sticky="ew", pady=(10,0))
-        tk.Label(lw, text="ACTIVITY LOG", font=FONTS["ui_lg"],
-                 bg=C["bg"], fg=C["text"]).pack(anchor=tk.W, pady=(0,6))
-        self.log_text = tk.Text(lw, height=7,
+        lw.grid(row=2, column=0, sticky="ew", pady=(12,0))
+        tk.Label(lw, text="📝 ACTIVITY LOG", font=FONTS["ui_lg"],
+                 bg=C["bg"], fg=C["text"]).pack(anchor=tk.W, pady=(0,8))
+        self.log_text = tk.Text(lw, height=8,
             bg=C["surface"], fg=C["accent2"],
-            font=("Consolas",9), relief=tk.FLAT, bd=0,
+            font=("Courier New", 9), relief=tk.FLAT, bd=0,
             insertbackground=C["accent"],
-            padx=12, pady=8, state=tk.DISABLED,
+            padx=12, pady=10, state=tk.DISABLED,
             highlightthickness=1, highlightbackground=C["border"])
         self.log_text.pack(fill=tk.X)
         for tag, col in [("ok",C["accent2"]),("err",C["danger"]),
                           ("warn",C["warn"]),("info",C["muted"])]:
             self.log_text.tag_configure(tag, foreground=col)
-
-    # ── public methods ───────────────────────────
 
     def open_settings(self):
         SettingsDialog(self.root)
@@ -659,11 +833,15 @@ class VideoRecorderGUI:
 
     def _start_blink(self):
         self._stop_blink()
-        def blink():
-            self._blink_state = not self._blink_state
-            self.header_status.configure(fg=C["rec"] if self._blink_state else C["surface"])
-            self._blink_job = self.root.after(600, blink)
-        self._blink_job = self.root.after(600, blink)
+        self.blink_state = False
+        self._do_blink()
+
+    def _do_blink(self):
+        """Blink animation - FIXED to avoid lambda issues"""
+        if self.root.winfo_exists():
+            self.blink_state = not self.blink_state
+            self.header_status.configure(fg=C["rec"] if self.blink_state else C["surface"])
+            self._blink_job = self.root.after(600, self._do_blink)
 
     def _stop_blink(self):
         if self._blink_job:
@@ -699,7 +877,6 @@ class VideoRecorderGUI:
         self.log_text.configure(state=tk.DISABLED)
 
     def _tick(self):
-        # Only reclaim focus when NO dialog is open AND the root window itself is focused
         if not dialog_open:
             try:
                 fw = self.root.focus_get()
@@ -707,16 +884,44 @@ class VideoRecorderGUI:
                     self.barcode_entry.focus_set()
             except Exception:
                 pass
-        self.root.after(300, self._tick)
+        self.tick_id = self.root.after(300, self._tick)
 
 # ─────────────────────────────────────────────
 #  API
 # ─────────────────────────────────────────────
 
+def create_workstation_api(cfg):
+    try:
+        res = requests.post(f"{cfg['api_base']}/api/workstation/create",
+            json=cfg, timeout=10)
+        
+        if res.status_code == 201:
+            wid = res.json()["workstation_id"]
+            print(f"workstation created: {wid}", "ok")
+            return wid
+        print(f"Create failed: {res.text}", "err"); return None
+    except Exception as e:
+        print(f"API Error: {e}", "err"); return None
+
+def update_workstation_api(ws_id, cfg):
+    try:
+        requests.put(f"{cfg['api_base']}/api/workstation/update/{ws_id}",
+            json=cfg,
+            timeout=10)
+        print(f"workstation updated: {ws_id}", "ok")
+        print({'id':ws_id,'cfg':cfg,'status':'Uploading',
+                      'time':datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
+        return True
+    except Exception as e:
+       print(f"Update error: {e}", "err")
+       return f"Update error: {e}"
+
+
+
 def create_packaging_api(barcode1):
     try:
         res = requests.post(f"{config.get('api_base')}/api/packaging/create",
-            json={"bar_code_1": barcode1}, timeout=10)
+            json={"bar_code_1": barcode1, 'ws_id' : config['ws_id']}, timeout=10)
         if res.status_code == 201:
             pid = res.json()["packaging_id"]
             gui.log(f"Packaging created: {pid}", "ok")
@@ -882,12 +1087,17 @@ def video_loop():
         cleanup()
 
 def cleanup():
-    global app_running, is_recording, cap
+    global app_running, is_recording, cap, gui
     app_running=False; is_recording=False
     if cap and cap.isOpened(): cap.release()
     stop_video_recording()
     time.sleep(0.5)
     frame_queue.put(None)
+    if gui and gui.tick_id:
+        try:
+            gui.root.after_cancel(gui.tick_id)
+        except:
+            pass
 
 # ─────────────────────────────────────────────
 #  ENTRY POINT
@@ -907,10 +1117,51 @@ def start_main_app():
     cleanup(); wt.join(timeout=5)
     print("Application closed.")
 
+def start_application():
+    global gui
+    root = tk.Tk()
+    root.withdraw()   # hide main window initially
+
+    def after_splash():
+        splash.root.destroy()
+
+        # check config exists or empty
+        cfg = load_config()
+
+        if not cfg or not cfg.get("workstation_name"):
+            # show config first run
+            show_config(root)
+        else:
+            start_main(root)
+
+    def show_config(root):
+        cfg_win = tk.Toplevel(root)
+        ConfigSetupGUI(cfg_win, lambda: start_main(root))
+
+    def start_main(root):
+        global gui
+        root.deiconify()
+        gui = VideoRecorderGUI(root)
+        # START THE CRITICAL VIDEO AND WRITER THREADS
+        wt = threading.Thread(target=frame_writer_thread, daemon=False)
+        wt.start()
+        vt = threading.Thread(target=video_loop, daemon=True)
+        vt.start()
+        
+        def on_close():
+            global app_running, recording
+            app_running = False
+            recording = False
+            root.destroy()
+        
+        root.protocol("WM_DELETE_WINDOW", on_close)
+
+    # show splash
+    splash = SplashScreen(root, duration=3, logo_path=LOGO_PATH)
+    root.after(3000, after_splash)
+
+    root.mainloop()
+    cleanup()
+    
 if __name__ == "__main__":
-    if not load_config():
-        r = tk.Tk()
-        ConfigSetupGUI(r, start_main_app)
-        r.mainloop()
-    else:
-        start_main_app()
+    start_application()

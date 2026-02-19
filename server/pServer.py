@@ -162,46 +162,131 @@ def login_user():
 # ==================== WORKSTATION APIs ====================
 
 @app.route('/api/workstation/create', methods=['POST'])
-@token_required
-def create_workstation(current_user_id):
+def create_workstation():
     """Create a new workstation"""
-    data = request.get_json()
-    
-    required_fields = ['workstation_name', 'system_mac_id', 'camera_url']
-    if not all(field in data for field in required_fields):
-        return jsonify({'message': f'Missing required fields: {", ".join(required_fields)}'}), 400
-    
+
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({'message': 'Invalid JSON data'}), 400
+
+    # Required fields
+    required_fields = ['workstation_name', 'system_ip', 'rtsp_url']
+    missing = [f for f in required_fields if not data.get(f)]
+
+    if missing:
+        return jsonify({'message': f'Missing required fields: {", ".join(missing)}'}), 400
+
+    # Validate is_active
+    is_active = data.get('is_active', 'y')
+    if is_active not in ['y', 'n']:
+        return jsonify({'message': 'is_active must be y or n'}), 400
+
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        
+
         cursor.execute("""
             INSERT INTO workstation (
-                workstation_name, system_mac_id, camera_url, camera_quality,
-                pre_video_time, process_video_time, fps, is_active
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                workstation_name,
+                system_ip,
+                rtsp_url,
+                frame_rate,
+                pre_buffer_duration,
+                post_buffer_duration,
+                video_quality,
+                video_save_path,
+                api_base,
+                is_active
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             data['workstation_name'],
-            data['system_mac_id'],
-            data['camera_url'],
-            data.get('camera_quality', 'HD'),
-            data.get('pre_video_time', 30),
-            data.get('process_video_time', 60),
-            data.get('fps', 30),
-            data.get('is_active', 'y')
+            data['system_ip'],
+            data['rtsp_url'],
+            data.get('frame_rate', 30),
+            data.get('pre_buffer_duration', 5),
+            data.get('post_buffer_duration', 5),
+            data.get('video_quality', 'High'),
+            data.get('video_save_path', 'Videos'),
+            data.get('api_base'),
+            is_active
         ))
-        
+
         workstation_id = cursor.lastrowid
         conn.commit()
         conn.close()
-        
+
         return jsonify({
             'message': 'Workstation created successfully',
             'workstation_id': workstation_id
         }), 201
-        
+
     except Exception as e:
         return jsonify({'message': f'Error creating workstation: {str(e)}'}), 500
+
+
+@app.route('/api/workstation/update/<int:ws_id>', methods=['PUT'])
+def update_workstation(ws_id):
+    """Update an existing workstation"""
+
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({'message': 'No data provided'}), 400
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Check if workstation exists
+        cursor.execute("SELECT id FROM workstation WHERE id = ?", (ws_id,))
+        if not cursor.fetchone():
+            conn.close()
+            return jsonify({'message': 'Workstation not found'}), 404
+
+        allowed_fields = [
+            'workstation_name',
+            'system_ip',
+            'rtsp_url',
+            'frame_rate',
+            'pre_buffer_duration',
+            'post_buffer_duration',
+            'video_quality',
+            'video_save_path',
+            'api_base',
+            'is_active'
+        ]
+
+        update_fields = []
+        params = []
+
+        for field in allowed_fields:
+            if field in data:
+                if field == "is_active" and data[field] not in ['y', 'n']:
+                    return jsonify({'message': 'is_active must be y or n'}), 400
+
+                update_fields.append(f"{field} = ?")
+                params.append(data[field])
+
+        if not update_fields:
+            conn.close()
+            return jsonify({'message': 'No valid fields to update'}), 400
+
+        params.append(ws_id)
+
+        query = f"""
+            UPDATE workstation
+            SET {', '.join(update_fields)}
+            WHERE id = ?
+        """
+
+        cursor.execute(query, params)
+        conn.commit()
+        conn.close()
+
+        return jsonify({'message': 'Workstation updated successfully'}), 200
+
+    except Exception as e:
+        return jsonify({'message': f'Error updating workstation: {str(e)}'}), 500
+
 
 @app.route('/api/workstation/list', methods=['GET'])
 @token_required
@@ -269,9 +354,10 @@ def create_packaging():
         
         cursor.execute("""
             INSERT INTO tracking_table (
-                bar_code_1, start_time, bar_code_2, end_time, video_path, is_active
-            ) VALUES (?, ?, ?, ?, ?, ?)
+                ws_id, bar_code_1, start_time, bar_code_2, end_time, video_path, is_active
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (
+            data['ws_id'],
             data['bar_code_1'],
             data.get('start_time', datetime.datetime.now().isoformat()),
             data.get('bar_code_2'),
@@ -337,67 +423,100 @@ def update_packaging(packaging_id):
 @app.route('/api/packaging/list', methods=['GET'])
 @token_required
 def list_packaging(current_user_id):
-    """Get paginated list of packaging records with filters"""
+    """Get paginated list of packaging records with workstation details"""
     try:
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 10, type=int)
         offset = (page - 1) * per_page
-        
+
         is_active = request.args.get('is_active', None)
         bar_code_1 = request.args.get('bar_code_1', None)
         bar_code_2 = request.args.get('bar_code_2', None)
         start_date = request.args.get('start_date', None)
         end_date = request.args.get('end_date', None)
-        
+
         conn = get_db_connection()
         cursor = conn.cursor()
-        
-        query = "SELECT * FROM tracking_table WHERE 1=1"
+
+        # ✅ JOIN workstation table
+        query = """
+        SELECT
+            t.*,
+            w.workstation_name,
+            w.system_ip,
+            w.rtsp_url
+        FROM tracking_table t
+        LEFT JOIN workstation w ON t.ws_id = w.id
+        WHERE 1=1
+        """
+
         params = []
-        
+
         if is_active:
-            query += " AND is_active = ?"
+            query += " AND t.is_active = ?"
             params.append(is_active)
-        
+
         if bar_code_1:
-            query += " AND bar_code_1 LIKE ?"
+            query += " AND t.bar_code_1 LIKE ?"
             params.append(f'%{bar_code_1}%')
-        
+
         if bar_code_2:
-            query += " AND bar_code_2 LIKE ?"
+            query += " AND t.bar_code_2 LIKE ?"
             params.append(f'%{bar_code_2}%')
-        
+
         if start_date:
-            query += " AND start_time >= ?"
+            query += " AND t.start_time >= ?"
             params.append(start_date)
-        
+
         if end_date:
-            query += " AND end_time <= ?"
+            query += " AND t.end_time <= ?"
             params.append(end_date)
-        
-        count_query = query.replace("SELECT *", "SELECT COUNT(*)")
-        cursor.execute(count_query, params)
+
+        # count query
+        count_query = f"""
+        SELECT COUNT(*)
+        FROM tracking_table t
+        LEFT JOIN workstation w ON t.ws_id = w.id
+        WHERE 1=1
+        """
+
+        count_params = params.copy()
+
+        if is_active:
+            count_query += " AND t.is_active = ?"
+        if bar_code_1:
+            count_query += " AND t.bar_code_1 LIKE ?"
+        if bar_code_2:
+            count_query += " AND t.bar_code_2 LIKE ?"
+        if start_date:
+            count_query += " AND t.start_time >= ?"
+        if end_date:
+            count_query += " AND t.end_time <= ?"
+
+        cursor.execute(count_query, count_params)
         total_count = cursor.fetchone()[0]
-        
-        query += " ORDER BY doa DESC LIMIT ? OFFSET ?"
+
+        # pagination
+        query += " ORDER BY t.doa DESC LIMIT ? OFFSET ?"
         params.extend([per_page, offset])
-        
+
         cursor.execute(query, params)
         packaging_records = cursor.fetchall()
+
         conn.close()
-        
+
         return jsonify({
-            'data': [dict(record) for record in packaging_records],
-            'pagination': {
-                'page': page,
-                'per_page': per_page,
-                'total': total_count,
-                'pages': (total_count + per_page - 1) // per_page
+            "data": [dict(record) for record in packaging_records],
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total_count,
+                "pages": (total_count + per_page - 1) // per_page
             }
         }), 200
-        
+
     except Exception as e:
-        return jsonify({'message': f'Error fetching packaging records: {str(e)}'}), 500
+        return jsonify({"message": f"Error fetching packaging records: {str(e)}"}), 500
 
 @app.route('/api/packaging/upload-video/<int:packaging_id>', methods=['POST'])
 def upload_video(packaging_id):

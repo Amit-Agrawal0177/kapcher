@@ -14,11 +14,19 @@ from PIL import Image, ImageDraw, ImageFont
 import io
 import socket
 
+APP_PATH = os.path.join(os.getenv("LOCALAPPDATA"), "Kapcher")
+os.makedirs(APP_PATH, exist_ok=True)
+
+VIDEO_FOLDER = os.path.join(APP_PATH, "Videos")
+os.makedirs(VIDEO_FOLDER, exist_ok=True)
+
+print("Uploads folder:", VIDEO_FOLDER)
+
 # ─────────────────────────────────────────────
 #  CONFIG
 # ─────────────────────────────────────────────
 
-CONFIG_FILE = "config.json"
+CONFIG_FILE = os.path.join(APP_PATH, "config.json")
 SETTINGS_PASSWORD = "1"
 LOGO_PATH = "logo.png"  # Path to your Kapcher logo
 
@@ -985,7 +993,7 @@ def start_video_recording(b1, _):
     global current_writer, current_output_file, frame_width, frame_height
     b1 = b1.replace('\r','').replace('\n','')
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    vp = config.get('video_save_path','Videos')
+    vp = VIDEO_FOLDER   #config.get('video_save_path','Videos')
     os.makedirs(vp, exist_ok=True)
     current_output_file = f"{vp}/{b1}_{ts}.mp4"
     fourcc = cv2.VideoWriter_fourcc(*'H264')
@@ -1068,7 +1076,7 @@ def video_loop():
                     if current_output_file:
                         old=current_output_file
                         ts=datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                        new=f"{config.get('video_save_path','Videos')}/{b1}_to_{b2}_{ts}.mp4"
+                        new=f"{VIDEO_FOLDER}/{b1}_to_{b2}_{ts}.mp4"
                         try: os.rename(old,new); fp=new
                         except: fp=old
                         if current_packaging_id:

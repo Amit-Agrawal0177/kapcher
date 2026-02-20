@@ -1,6 +1,22 @@
+import os
 import sqlite3
 
-conn = sqlite3.connect("database.db")
+APP_PATH = os.path.join(os.getenv("LOCALAPPDATA"), "Kapcher")
+os.makedirs(APP_PATH, exist_ok=True)
+
+DB_PATH = os.path.join(APP_PATH, "database.db")
+
+print("DB PATH:", DB_PATH)
+
+
+UPLOAD_FOLDER = os.path.join(APP_PATH, "uploads", "videos")
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+print("Uploads folder:", UPLOAD_FOLDER)
+
+
+
+conn = sqlite3.connect(DB_PATH)
 cursor = conn.cursor()
 
 # ---------------- USER TABLE ----------------
@@ -83,13 +99,11 @@ import datetime
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_cors import CORS
-import os
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this-in-production'
 
-UPLOAD_FOLDER = 'uploads/videos'
 ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov', 'mkv', 'wmv', 'flv', 'webm'}
 MAX_FILE_SIZE = 500 * 1024 * 1024 
 
@@ -102,7 +116,7 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def get_db_connection():
-    conn = sqlite3.connect('database.db')
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 

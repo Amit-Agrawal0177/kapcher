@@ -1,19 +1,24 @@
 import os
 import sqlite3
+import webbrowser
+import threading
+import time
 
-APP_PATH = os.path.join(os.getenv("LOCALAPPDATA"), "Kapcher")
-os.makedirs(APP_PATH, exist_ok=True)
+# APP_PATH = os.path.join(os.getenv("LOCALAPPDATA"), "Kapcher")
+# os.makedirs(APP_PATH, exist_ok=True)
 
-DB_PATH = os.path.join(APP_PATH, "database.db")
+# DB_PATH = os.path.join(APP_PATH, "database.db")
 
-print("DB PATH:", DB_PATH)
+# print("DB PATH:", DB_PATH)
 
 
-UPLOAD_FOLDER = os.path.join(APP_PATH, "uploads", "videos")
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# UPLOAD_FOLDER = os.path.join(APP_PATH, "uploads", "videos")
+# os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-print("Uploads folder:", UPLOAD_FOLDER)
+# print("Uploads folder:", UPLOAD_FOLDER)
 
+DB_PATH = "database.db"
+UPLOAD_FOLDER = "uploads/videos"
 
 
 conn = sqlite3.connect(DB_PATH)
@@ -516,6 +521,8 @@ def list_packaging(current_user_id):
         bar_code_2 = request.args.get('bar_code_2', None)
         start_date = request.args.get('start_date', None)
         end_date = request.args.get('end_date', None)
+        ws_id = request.args.get('ws_id', None)
+        workstation_name = request.args.get('workstation_name', None)
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -554,6 +561,14 @@ def list_packaging(current_user_id):
             query += " AND t.end_time <= ?"
             params.append(end_date)
 
+        if ws_id:
+            query += " AND t.ws_id = ?"
+            params.append(ws_id)
+
+        if workstation_name:
+            query += " AND w.workstation_name LIKE ?"
+            params.append(f'%{workstation_name}%')
+
         # count query
         count_query = f"""
         SELECT COUNT(*)
@@ -574,6 +589,10 @@ def list_packaging(current_user_id):
             count_query += " AND t.start_time >= ?"
         if end_date:
             count_query += " AND t.end_time <= ?"
+        if ws_id:
+            count_query += " AND t.ws_id = ?"
+        if workstation_name:
+            count_query += " AND w.workstation_name LIKE ?"
 
         cursor.execute(count_query, count_params)
         total_count = cursor.fetchone()[0]
@@ -859,5 +878,10 @@ def health_check():
     """Health check endpoint"""
     return jsonify({'status': 'ok', 'message': 'API is running'}), 200
 
+def open_browser():
+    time.sleep(2)  # wait for server to start
+    webbrowser.open("http://localhost:27189/")
+
 if __name__ == '__main__':
+    threading.Thread(target=open_browser).start()
     app.run(debug=True, host='0.0.0.0', port=27189)

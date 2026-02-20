@@ -4,7 +4,7 @@ terminal
 python -m PyInstaller --onefile --name kapcher --icon=icon.ico --add-data "templates;templates" --add-data "static;static" app.py
 
 without terminal
-python -m PyInstaller --onefile --windowed --name kapcher --icon=icon.ico --add-data "templates;templates" --add-data "static;static" app.py
+python -m PyInstaller --onefile --windowed --name kapcherServer --icon=icon.ico --add-data "templates;templates" --add-data "static;static" app.py
 
 
 iss file for exe password protected

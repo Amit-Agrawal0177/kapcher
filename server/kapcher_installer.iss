@@ -25,7 +25,7 @@ WizardStyle=modern
 ; ================================
 
 [Files]
-Source: "dist\kapcher.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\kapcherServer.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 ; ================================
 ; SHORTCUTS

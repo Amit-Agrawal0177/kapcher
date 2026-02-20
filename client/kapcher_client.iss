@@ -14,7 +14,7 @@ PrivilegesRequired=lowest
 WizardStyle=modern
 
 [Files]
-Source: "dist\kapcher_client.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\kapcherClient.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "logo.png"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]

@@ -3,22 +3,25 @@ import sqlite3
 import webbrowser
 import threading
 import time
+import platform
 
-# APP_PATH = os.path.join(os.getenv("LOCALAPPDATA"), "Kapcher")
-# os.makedirs(APP_PATH, exist_ok=True)
+os_name = platform.system()
 
-# DB_PATH = os.path.join(APP_PATH, "database.db")
+if os_name == "Windows":
+    print("Running on Windows")
 
-# print("DB PATH:", DB_PATH)
+    APP_PATH = os.path.join(os.getenv("LOCALAPPDATA"), "Kapcher")
+    os.makedirs(APP_PATH, exist_ok=True)
+    DB_PATH = os.path.join(APP_PATH, "database.db")
 
+    UPLOAD_FOLDER = os.path.join(APP_PATH, "uploads", "videos")
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# UPLOAD_FOLDER = os.path.join(APP_PATH, "uploads", "videos")
-# os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-# print("Uploads folder:", UPLOAD_FOLDER)
-
-DB_PATH = "database.db"
-UPLOAD_FOLDER = "uploads/videos"
+elif os_name == "Darwin":
+    print("Running on macOS")
+    
+    DB_PATH = "database.db"
+    UPLOAD_FOLDER = "uploads/videos"
 
 
 conn = sqlite3.connect(DB_PATH)
@@ -884,4 +887,4 @@ def open_browser():
 
 if __name__ == '__main__':
     threading.Thread(target=open_browser).start()
-    app.run(debug=True, host='0.0.0.0', port=27189)
+    app.run(debug=True, host='0.0.0.0', port=27189, use_reloader=False)

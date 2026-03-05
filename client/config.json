@@ -1,5 +1,5 @@
 {
-    "workstation_name": "ws32",
+    "workstation_name": "ws1",
     "rtsp_url": "0",
     "frame_rate": 30,
     "pre_buffer_duration": 5,
@@ -7,6 +7,6 @@
     "api_base": "http://localhost:27189",
     "video_quality": "High",
     "video_save_path": "Videos",
-    "system_ip": "192.0.0.2",
+    "system_ip": "192.168.0.135",
     "ws_id": 31
 }

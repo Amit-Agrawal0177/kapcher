@@ -14,22 +14,29 @@ from PIL import Image, ImageDraw, ImageFont, ImageTk
 import io
 import socket
 import math
+import platform
 
-APP_PATH = os.path.join(os.getenv("LOCALAPPDATA"), "Kapcher")
-os.makedirs(APP_PATH, exist_ok=True)
+os_name = platform.system()
 
-VIDEO_FOLDER = os.path.join(APP_PATH, "Videos")
-os.makedirs(VIDEO_FOLDER, exist_ok=True)
+if os_name == "Windows":
+    print("Running on Windows")
+    APP_PATH = os.path.join(os.getenv("LOCALAPPDATA"), "Kapcher")
+    os.makedirs(APP_PATH, exist_ok=True)
 
-print("Uploads folder:", VIDEO_FOLDER)
+    VIDEO_FOLDER = os.path.join(APP_PATH, "Videos")
+    CONFIG_FILE  = os.path.join(APP_PATH, "config.json")
+    os.makedirs(VIDEO_FOLDER, exist_ok=True)
+
+elif os_name == "Darwin":
+    print("Running on macOS")
+    VIDEO_FOLDER = "Videos"
+    CONFIG_FILE  = "config.json"
+
 
 # ─────────────────────────────────────────────
 #  CONFIG
 # ─────────────────────────────────────────────
-
-CONFIG_FILE  = os.path.join(APP_PATH, "config.json")
-
-SETTINGS_PASSWORD = "1"
+SETTINGS_PASSWORD = "1234"
 LOGO_PATH = "logo.png"
 
 DEFAULT_CONFIG = {

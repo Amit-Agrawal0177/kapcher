@@ -11,7 +11,7 @@ AppName=Kapcher Server
 AppVersion=1.0
 AppPublisher=Kapcher
 DefaultDirName={pf}\KapcherServer
-DefaultGroupName=Kapcher
+DefaultGroupName=KapcherServer
 OutputBaseFilename=KapcherServerSetup
 Compression=lzma
 SolidCompression=yes
@@ -32,8 +32,8 @@ Source: "dist\kapcherServer.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; ================================
 
 [Icons]
-Name: "{group}\Kapcher Server"; Filename: "{app}\kapcher.exe"
-Name: "{commondesktop}\Kapcher Server"; Filename: "{app}\kapcher.exe"
+Name: "{group}\Kapcher Server"; Filename: "{app}\KapcherServer.exe"
+Name: "{commondesktop}\Kapcher Server"; Filename: "{app}\KapcherServer.exe"
 
 ; ================================
 ; AUTO START ON WINDOWS BOOT
@@ -49,7 +49,7 @@ ValueData: """{app}\kapcher.exe"""; Flags: uninsdeletevalue
 ; ================================
 
 [Run]
-Filename: "{app}\kapcher.exe"; \
+Filename: "{app}\KapcherServer.exe"; \
 Description: "Launch Kapcher Server"; \
 Flags: nowait postinstall skipifsilent
 

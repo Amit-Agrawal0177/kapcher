@@ -18,16 +18,16 @@ Source: "dist\kapcherClient.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "logo.png"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\Kapcher Client"; Filename: "{app}\kapcher_client.exe"
-Name: "{userdesktop}\Kapcher Client"; Filename: "{app}\kapcher_client.exe"
+Name: "{group}\Kapcher Client"; Filename: "{app}\kapcherClient.exe"
+Name: "{userdesktop}\Kapcher Client"; Filename: "{app}\kapcherClient.exe"
 
 ; Auto start on Windows login
 [Registry]
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
 ValueType: string; ValueName: "KapcherClient"; \
-ValueData: """{app}\kapcher_client.exe"""; Flags: uninsdeletevalue
+ValueData: """{app}\kapcherClient.exe"""; Flags: uninsdeletevalue
 
 [Run]
-Filename: "{app}\kapcher_client.exe"; \
+Filename: "{app}\kapcherClient.exe"; \
 Description: "Launch Kapcher Client"; \
 Flags: nowait postinstall skipifsilent
